@@ -1,0 +1,44 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "yuva2109/html-demo"
+    }
+
+    stages {
+        stage('Clone Code') {
+            steps {
+                // Replace with your actual GitHub repository URL
+                git branch: 'main', url: 'https://github.com/yuvarajsaravanan21/docker.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                bat "docker build -t %DOCKER_IMAGE% ."
+            }
+        }
+
+        stage('Push Image') {
+            steps {
+                // Ensure you have a 'dockerhub' credential ID created in Jenkins
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    bat "docker login -u %USER% -p %PASS%"
+                    bat "docker push %DOCKER_IMAGE%"
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                // Ensure you have a 'kubeconfig' file credential created in Jenkins
+                withCredentials([file(credentialsId: 'kuberconfig', variable: 'KUBECONFIG')]) {
+                    bat """
+                    set KUBECONFIG=%KUBECONFIG%
+                    kubectl apply -f deployment.yaml --validate=false
+                    """
+                }
+            }
+        }
+    }
+}
